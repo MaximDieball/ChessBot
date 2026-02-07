@@ -2,7 +2,9 @@ import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from bots.randomBot import get_move
+from bots.randomBot.randomBot import get_random_bot_move
+from bots.botv1.botv1 import get_botv1_move
+from bots.botv2.botv2 import get_botv2_move
 
 app = FastAPI()
 
@@ -13,7 +15,15 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            move = get_move(data['board'], data['turn'])
+            match data["bot"]:
+                case "random":
+                    move = get_random_bot_move(data['board'], data['turn'])
+                case "v1":
+                    move = get_botv1_move(data['board'], data['turn'])
+                case "v2":
+                    move, evaluation = get_botv2_move(data['board'], data['turn'])
+                case _:
+                    move = get_random_bot_move(data['board'], data['turn'])
 
             # Send the move back to the React app
             await websocket.send_json({"type": "move", "originalPosition": move[0], "newPosition": move[1]})

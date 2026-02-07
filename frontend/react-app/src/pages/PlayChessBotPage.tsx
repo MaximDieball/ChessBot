@@ -9,6 +9,7 @@ import {
   getTurn,
   getWinner,
 } from "../chessLogic/chessLogic";
+import BotSelector from "../components/BotSelector";
 
 import wRook from "../assets/pieces/white-rook.png";
 import wBishop from "../assets/pieces/white-bishop.png";
@@ -31,6 +32,35 @@ function PlayChessBotPage() {
   const [, forceRender] = useState(0);
   const [showPopUp, setShowPopUp] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [markings, setMarkings] = useState(Array(64).fill(0));
+  const [selectedBot, setSelectedBot] = useState("random");
+
+  function removeAllMarkings(markingToRemove: number) {
+    setMarkings((prevMarkings) => {
+      // Map over the previous state to create a new array
+      return prevMarkings.map((m) => (m === markingToRemove ? 0 : m));
+    });
+  }
+
+  function addMarking(marking: number, position: number) {
+    setMarkings((prevMarkings) => {
+      const newMarkings = [...prevMarkings];
+      newMarkings[position] = marking;
+      return newMarkings;
+    });
+  }
+
+  function removeMarking(position: number) {
+    setMarkings((prevMarkings) => {
+      const newMarkings = [...prevMarkings];
+      newMarkings[position] = 0;
+      return newMarkings;
+    });
+  }
+
+  function reRenderPage() {
+    forceRender((n) => n + 1);
+  }
 
   function onSquareClicked(position: number) {
     const board = getBoard();
@@ -54,6 +84,11 @@ function PlayChessBotPage() {
       }
     } else {
       if (legalMoves[position] === 1) {
+        // mark move on board
+        removeAllMarkings(1);
+        addMarking(1, position);
+        addMarking(1, selectedSquare);
+        reRenderPage();
         // perform actual move
         movePiece(selectedSquare, position);
         setSelectedSquare(-1);
@@ -183,22 +218,27 @@ function PlayChessBotPage() {
   function resetBoardButton() {
     setSelectedSquare(-1);
     resetBoard();
-    forceRender((n) => n + 1);
+    reRenderPage();
     setShowPopUp(false);
+    setMarkings(Array(64).fill(0));
   }
 
-  function handleMessage(event: MessageEvent<any>){
+  function handleMessage(event: MessageEvent<any>) {
     console.log("got Message");
-    forceRender((n) => n + 1);
+    reRenderPage();
     const response = JSON.parse(event.data);
-    if(response["type"] === "move"){
+    if (response["type"] === "move") {
+      // mark move on board
+      removeAllMarkings(2);
+      addMarking(2, response["originalPosition"]);
+      addMarking(2, response["newPosition"]);
       movePiece(response["originalPosition"], response["newPosition"]);
     }
   }
 
-  function sendMessage(board: string[]){
+  function sendMessage(board: string[]) {
     console.log("send message");
-    socket?.send(JSON.stringify({ "board": board, "turn": getTurn()}));
+    socket?.send(JSON.stringify({ board: board, turn: getTurn(), bot: selectedBot}));
   }
 
   useEffect(() => {
@@ -217,6 +257,12 @@ function PlayChessBotPage() {
 
   return (
     <>
+      <div
+        className="w-100 bg-white mx-auto rounded-bottom"
+      >
+        <BotSelector onSelectBot={(id) => setSelectedBot(id)} />
+      </div>
+
       <div className="d-flex flex-column justify-content-center align-items-center vh-100">
         <div
           className="rounded"
@@ -248,6 +294,12 @@ function PlayChessBotPage() {
                   userSelect: "none",
                   cursor: "pointer",
                   border: selectedSquare === i ? "4px solid #0d6efd" : "",
+                  boxShadow:
+                    markings[i] === 1
+                      ? "inset 0 0 0 1000px rgba(70, 100, 200, 0.5)"
+                      : markings[i] === 2
+                        ? "inset 0 0 0 1000px rgba(200, 100, 70, 0.5)"
+                        : "inset 0 0 0 1000px rgba(0, 0, 0, 0)",
                 }}
               >
                 {renderPiece(piece)}
@@ -291,7 +343,7 @@ function PlayChessBotPage() {
         >
           <>{getWinner() === "w" ? "White" : "Black"} won the game!</>
           <button
-            className="btn btn-primary mt-3"
+            className="btn btn-primary mt-1"
             onClick={() => setShowPopUp(false)}
           >
             Ok

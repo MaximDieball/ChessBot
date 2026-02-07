@@ -1,8 +1,6 @@
 let board = Array(64).fill("");
 let legalMoves = Array(64).fill(0);
 let turn = "w";
-let wKPos = 60;
-let bKPos = 4;
 let inCheck = false;
 let movesOutOfCheck: number[][] = [];
 let winner = "";
@@ -10,77 +8,69 @@ let winner = "";
 export function movePiece(originalPosition: number, newPosition: number) {
   const piece = board[originalPosition];
   const pieceType = piece.substring(0, 3);
-  const moves = Number(piece.slice(4)) + 1;
-  const pieceTaken = board[newPosition];
-  board[newPosition] = pieceType + "-" + moves;
-  board[originalPosition] = "";
-  // tracking King
-  if (pieceType === "w-K") {
-    wKPos = newPosition;
-  } else if (pieceType == "b-K") {
-    bKPos = newPosition;
-  }
-  // castle logic
-  if (pieceType === "w-K" && newPosition === 62) {
-    movePiece(63, 61); // move rook
-  }
-  if (pieceType === "w-K" && newPosition === 58) {
-    movePiece(56, 59); // move rook
-  }
-  if (pieceType === "b-K" && newPosition === 2) {
-    movePiece(0, 3); // move rook
-  }
-  if (pieceType === "b-K" && newPosition === 6) {
-    movePiece(7, 5); // move rook
-  }
-
-  // en passant
-  if (pieceType === "b-P" && newPosition - originalPosition === 16) {
-    board[newPosition - 8] = "b-E-0";
-  }
-  if (pieceType === "w-P" && originalPosition - newPosition === 16) {
-    board[newPosition + 8] = "w-E-0";
-  }
-  if (pieceTaken === "b-E-0") {
-    board[newPosition + 8] = "";
-  }
-  if (pieceTaken === "w-E-0") {
-    board[newPosition - 8] = "";
-  }
-  console.log("moved Piece");
+  const moveCounter = Number(piece.slice(4)) + 1;
+  const newPieceString = pieceType + "-" + moveCounter;
+  board = updateBoard(originalPosition, newPosition, board);
+  board[newPosition] = newPieceString;
+  //console.log("moved Piece");
   switchTurn();
 }
 
-function simulateMoveOutOfCheck(
+function updateBoard(
   originalPosition: number,
   newPosition: number,
   board: string[],
 ) {
-  let simulatedBoard = [...board];
-  const piece = simulatedBoard[originalPosition];
+  let newBoard = [...board];
+  let piece = newBoard[originalPosition];
+  if (piece.length < 4) {
+    // safety check / fixes weired desync bugs
+    return newBoard;
+  }
   const pieceType = piece.substring(0, 3);
-  const moves = Number(piece.slice(4)) + 1;
-  const pieceTaken = simulatedBoard[newPosition];
-  simulatedBoard[newPosition] = pieceType + "-" + moves;
-  simulatedBoard[originalPosition] = "";
+  const pieceTaken = newBoard[newPosition];
+  const moveCounter = Number(piece.slice(4)) + 1;
+  piece = pieceType + "-" + moveCounter;
+  newBoard[originalPosition] = "";
+  // castle logic
+  // castle logic
+  if (pieceType === "w-K" && newPosition === 62) {
+    newBoard = updateBoard(63, 61, newBoard);
+  }
+  if (pieceType === "w-K" && newPosition === 58) {
+    newBoard = updateBoard(56, 59, newBoard);
+  }
+  if (pieceType === "b-K" && newPosition === 2) {
+    newBoard = updateBoard(0, 3, newBoard);
+  }
+  if (pieceType === "b-K" && newPosition === 6) {
+    newBoard = updateBoard(7, 5, newBoard);
+  }
 
   // en passant
   if (pieceType === "b-P" && newPosition - originalPosition === 16) {
-    simulatedBoard[newPosition - 8] = "b-E-0";
+    newBoard[newPosition - 8] = "b-E-0";
   }
   if (pieceType === "w-P" && originalPosition - newPosition === 16) {
-    simulatedBoard[newPosition + 8] = "w-E-0";
+    newBoard[newPosition + 8] = "w-E-0";
   }
-  if (pieceTaken === "b-E-0") {
-    simulatedBoard[newPosition + 8] = "";
+  if (pieceTaken === "b-E-0" && pieceType[2] === "P") {
+    newBoard[newPosition + 8] = "";
   }
-  if (pieceTaken === "w-E-0") {
-    simulatedBoard[newPosition - 8] = "";
+  if (pieceTaken === "w-E-0" && pieceType[2] === "P") {
+    newBoard[newPosition - 8] = "";
   }
-  return simulatedBoard;
+  newBoard[newPosition] = piece;
+  return newBoard;
 }
 
 export function getBoard() {
+  // make shure there are no ghost pieces
+  for (let i = 0; i < 64; i++) {
+    if (board[i] !== "" && board[i].length < 5) {
+      board[i] = "";
+    }
+  }
   return board;
 }
 export function getLegalMoves() {
@@ -90,8 +80,8 @@ export function getTurn() {
   return turn;
 }
 
-export function getWinner(){
-    return winner;
+export function getWinner() {
+  return winner;
 }
 
 function straightRay(start: number, delta: number, inputBoard: string[]) {
@@ -226,7 +216,11 @@ function findKingMoves(position: number, board: string[]) {
   return foundSquares;
 }
 
-function isOpponentQueenOrRook(position: number | undefined, color: string) {
+function isOpponentQueenOrRook(
+  position: number | undefined,
+  color: string,
+  board: string[],
+) {
   if (position === undefined) {
     return false;
   }
@@ -240,7 +234,11 @@ function isOpponentQueenOrRook(position: number | undefined, color: string) {
   }
   return false;
 }
-function isOpponentQueenOrBishop(position: number | undefined, color: string) {
+function isOpponentQueenOrBishop(
+  position: number | undefined,
+  color: string,
+  board: string[],
+) {
   if (position === undefined) {
     return false;
   }
@@ -255,12 +253,11 @@ function isOpponentQueenOrBishop(position: number | undefined, color: string) {
   return false;
 }
 
-function checkMate(color: string, position: number, board: string[]) {
-  inCheck = checkCheck(color, position, board);
-
+function checkMate(color: string, board: string[]) {
+  inCheck = checkCheck(color, board);
+  let possibleMoves: number[][] = [];
   if (inCheck) {
     // find all legal moves
-    let possibleMoves: number[][] = [];
     for (let pos = 0; pos < 64; pos++) {
       if (board[pos] !== "" && board[pos][0] === color) {
         let legalMovesFound = findLegalMoves(pos, board[pos], board);
@@ -269,69 +266,89 @@ function checkMate(color: string, position: number, board: string[]) {
         }
       }
     }
-    // check if a move can move color out of check
-    let inMate = true;
-    movesOutOfCheck = [];
-    for (let i = 0; i < possibleMoves.length; i++) {
-      let simulatedBoard = simulateMoveOutOfCheck(
-        possibleMoves[i][0],
-        possibleMoves[i][1],
-        board,
-      );
-      let kingPosInSim = position;
-      if (board[possibleMoves[i][0]][2] === "K") {
-        kingPosInSim = possibleMoves[i][1];
-      }
-      if (checkCheck(color, kingPosInSim, simulatedBoard) === false) {
-        inMate = false;
-        movesOutOfCheck.push(possibleMoves[i]);
-      }
-    }
-    return inMate;
+    return possibleMoves.length === 0;
   }
   return false;
 }
 
-function checkCheck(color: string, position: number, board: string[]) {
-  const knightSquares = findKnightMoves(position, board);
+function checkCheck(color: string, board: string[]) {
+  const kingPos =
+    color === "w" ? findKingPos("w", board) : findKingPos("b", board);
+  const knightSquares = findKnightMoves(kingPos, board);
   let knightCheck = false;
   for (let i = 0; i < knightSquares.length; i++) {
     let piece = board[knightSquares[i]];
-    if (piece !== "" && piece[0][3] === "N" && piece[0] !== color) {
+    if (piece !== "" && piece[2] === "N" && piece[0] !== color) {
       knightCheck = true;
     }
   }
 
   let rookCheck =
-    isOpponentQueenOrRook(straightRay(position, 1, board).at(-1), color) ||
-    isOpponentQueenOrRook(straightRay(position, -1, board).at(-1), color) ||
-    isOpponentQueenOrRook(straightRay(position, 8, board).at(-1), color) ||
-    isOpponentQueenOrRook(straightRay(position, -8, board).at(-1), color);
+    isOpponentQueenOrRook(
+      straightRay(kingPos, 1, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrRook(
+      straightRay(kingPos, -1, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrRook(
+      straightRay(kingPos, 8, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrRook(straightRay(kingPos, -8, board).at(-1), color, board);
 
   let bishopCheck =
-    isOpponentQueenOrBishop(diagonalRay(position, -7, board).at(-1), color) ||
-    isOpponentQueenOrBishop(diagonalRay(position, 7, board).at(-1), color) ||
-    isOpponentQueenOrBishop(diagonalRay(position, -9, board).at(-1), color) ||
-    isOpponentQueenOrBishop(diagonalRay(position, 9, board).at(-1), color);
+    isOpponentQueenOrBishop(
+      diagonalRay(kingPos, -7, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrBishop(
+      diagonalRay(kingPos, 7, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrBishop(
+      diagonalRay(kingPos, -9, board).at(-1),
+      color,
+      board,
+    ) ||
+    isOpponentQueenOrBishop(
+      diagonalRay(kingPos, 9, board).at(-1),
+      color,
+      board,
+    );
 
   let pawnCheck =
     // check for pawn checks
     (color === "b" &&
-      board[position + 7] !== "" &&
-      board[position + 7].substring(0, 3) === "w-P") ||
+      kingPos % 8 !== 0 &&
+      kingPos + 7 < 64 &&
+      board[kingPos + 7] !== "" &&
+      board[kingPos + 7].substring(0, 3) === "w-P") ||
     (color === "b" &&
-      board[position + 9] !== "" &&
-      board[position + 9].substring(0, 3) === "w-P") ||
+      kingPos % 8 !== 1 &&
+      kingPos + 9 < 64 &&
+      board[kingPos + 9] !== "" &&
+      board[kingPos + 9].substring(0, 3) === "w-P") ||
     (color === "w" &&
-      board[position - 7] !== "" &&
-      board[position - 7].substring(0, 3) === "b-P") ||
+      kingPos % 8 !== 1 &&
+      kingPos - 7 >= 0 &&
+      board[kingPos - 7] !== "" &&
+      board[kingPos - 7].substring(0, 3) === "b-P") ||
     (color === "w" &&
-      board[position - 9] !== "" &&
-      board[position - 9].substring(0, 3) === "b-P");
+      kingPos % 8 !== 0 &&
+      kingPos - 9 >= 0 &&
+      board[kingPos - 9] !== "" &&
+      board[kingPos - 9].substring(0, 3) === "b-P");
 
   // "king check"
   let kingCheck = false;
-  let kingMoves = findKingMoves(position, legalMoves);
+  let kingMoves = findKingMoves(kingPos, board);
   for (let i = 0; i < kingMoves.length; i++) {
     if (
       board[kingMoves[i]] !== "" &&
@@ -401,21 +418,7 @@ function findKnightMoves(position: number, board: string[]) {
 
 export function loadLegalMoves(position: number, pieceWithFlag: string) {
   let foundMoves: number[] = [];
-  if (inCheck === false) {
-    foundMoves = findLegalMoves(position, pieceWithFlag, board);
-  } else {
-    console.log("out of check moves: " + movesOutOfCheck.length);
-    for (let i = 0; i < movesOutOfCheck.length; i++) {
-      console.log(
-        "move " + movesOutOfCheck[i][0] + " to " + movesOutOfCheck[i][1],
-      );
-      if (movesOutOfCheck[i][0] === position) {
-        foundMoves.push(movesOutOfCheck[i][1]);
-        console.log("");
-      }
-    }
-  }
-
+  foundMoves = findLegalMoves(position, pieceWithFlag, board);
   legalMoves = Array(64).fill(0);
   for (let i = 0; i < 64; i++) {
     legalMoves[foundMoves[i]] = 1;
@@ -428,8 +431,8 @@ function findLegalMoves(
   board: string[],
 ) {
   // select all squares for now
-  console.log(pieceWithFlag);
-  console.log(position);
+  //console.log(pieceWithFlag);
+  //console.log(position);
   let foundMoves: number[] = [];
   // implement cheat here
   const pieceType = pieceWithFlag.substring(0, 3);
@@ -440,14 +443,27 @@ function findLegalMoves(
         foundMoves.push(position - 8);
       }
       // move two sqares
-      if (board[position - 16] === "" && position > 47 && position < 56) {
+      if (
+        board[position - 16] === "" &&
+        board[position - 8] === "" &&
+        position > 47 &&
+        position < 56
+      ) {
         foundMoves.push(position - 16);
       }
       // take diagonal
-      if ( position % 8 !== 0 && board[position - 9] !== "" && board[position - 9][0] === "b") {
+      if (
+        position % 8 !== 0 &&
+        board[position - 9] !== "" &&
+        board[position - 9][0] === "b"
+      ) {
         foundMoves.push(position - 9);
       }
-      if (position % 8 !== 7 && board[position -7] !== "" && board[position - 7][0] === "b") {
+      if (
+        position % 8 !== 7 &&
+        board[position - 7] !== "" &&
+        board[position - 7][0] === "b"
+      ) {
         foundMoves.push(position - 7);
       }
       break;
@@ -458,14 +474,27 @@ function findLegalMoves(
         foundMoves.push(position + 8);
       }
       // move two sqares
-      if (board[position + 16] === "" && position > 7 && position < 16) {
+      if (
+        board[position + 16] === "" &&
+        board[position + 8] === "" &&
+        position > 7 &&
+        position < 16
+      ) {
         foundMoves.push(position + 16);
       }
       // take diagonal
-      if (position % 8 !== 7 && board[position + 9] !== "" && board[position + 9][0] === "w") {
+      if (
+        position % 8 !== 7 &&
+        board[position + 9] !== "" &&
+        board[position + 9][0] === "w"
+      ) {
         foundMoves.push(position + 9);
       }
-      if (position % 8 !== 0 && board[position + 7] !== "" && board[position + 7][0] === "w") {
+      if (
+        position % 8 !== 0 &&
+        board[position + 7] !== "" &&
+        board[position + 7][0] === "w"
+      ) {
         foundMoves.push(position + 7);
       }
       break;
@@ -548,7 +577,25 @@ function findLegalMoves(
     default:
       foundMoves = Array(64).fill(1);
   }
+
+  // check if move would result in check
+  for (let i = foundMoves.length - 1; i >= 0; i--) {
+    const move = foundMoves[i];
+    let simulatedBoard = updateBoard(position, move, board);
+    if (checkCheck(turn, simulatedBoard)) {
+      foundMoves.splice(i, 1);
+    }
+  }
   return foundMoves;
+}
+
+function findKingPos(color: string, board: string[]) {
+  for (let i = 0; i < 64; i++) {
+    if (board[i] !== "" && board[i].substring(0, 3) === color + "-K") {
+      return i;
+    }
+  }
+  return 0;
 }
 
 function removeEnpassantPieces(color: string) {
@@ -571,12 +618,12 @@ export function resetLegalMoves() {
 }
 
 function switchTurn() {
-  if (turn == "w") {
+  if (turn === "w") {
     turn = "b";
     removeEnpassantPieces("b");
-    let inMate = checkMate("b", bKPos, board);
-    console.log("inMate: " + inMate);
-    console.log("inCheck: " + inCheck);
+    let inMate = checkMate("b", board);
+    console.log("black in mate: " + inMate);
+    console.log("black in check: " + inCheck);
     if (inMate === true) {
       winner = "w";
     }
@@ -584,9 +631,9 @@ function switchTurn() {
   } else {
     turn = "w";
     removeEnpassantPieces("w");
-    let inMate = checkMate("w", wKPos, board);
-    console.log("inMate: " + inMate);
-    console.log("inCheck: " + inCheck);
+    let inMate = checkMate("w", board);
+    console.log("white in mate: " + inMate);
+    console.log("white in check: " + inCheck);
     if (inMate === true) {
       winner = "b";
     }
@@ -609,7 +656,6 @@ export function resetBoard() {
   board[2] = "b-B-0";
   board[3] = "b-Q-0";
   board[4] = "b-K-0";
-  bKPos = 4;
   board[5] = "b-B-0";
   board[6] = "b-N-0";
   board[7] = "b-R-0";
@@ -622,7 +668,6 @@ export function resetBoard() {
   board[58] = "w-B-0";
   board[59] = "w-Q-0";
   board[60] = "w-K-0";
-  wKPos = 60;
   board[61] = "w-B-0";
   board[62] = "w-N-0";
   board[63] = "w-R-0";
