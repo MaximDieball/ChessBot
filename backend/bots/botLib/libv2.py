@@ -253,7 +253,7 @@ class Game:
 
         # promote to queen
         promoted = False
-        if piece.type == "P" and (new_position < 8 or new_position > 57):
+        if piece.type == "P" and (new_position < 8 or new_position > 55):
             piece.type = "Q"
             promoted = True
 
