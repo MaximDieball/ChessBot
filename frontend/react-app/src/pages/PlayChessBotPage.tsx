@@ -241,16 +241,26 @@ function PlayChessBotPage() {
     socket?.send(JSON.stringify({ board: board, turn: getTurn(), bot: selectedBot}));
   }
 
-  useEffect(() => {
+useEffect(() => {
     resetBoardButton();
-    // start connection
-    const ws = new WebSocket("ws://localhost:8000/ws");
 
-    ws.onopen = () => console.log("Connected to Bot");
-    ws.onmessage = handleMessage;
-    ws.onclose = () => console.log("Disconnected");
+    let wsUrl: string;
 
+    // Prüfen, ob wir lokal auf dem Vite-Dev-Server sind (Port 5173, 3000, etc.)
+    // und NICHT auf dem FastAPI Port 8000
+    if (window.location.hostname === 'localhost' && window.location.port !== '8000') {
+      // Hardcoded für lokale Entwicklung
+      wsUrl = "ws://localhost:8000/ws";
+    } else {
+      // Dynamisch für Produktion (Render) oder wenn du lokal über FastAPI testest
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      wsUrl = `${protocol}//${host}/ws`;
+    }
+
+    const ws = new WebSocket(wsUrl);
     setSocket(ws);
+
     // Clean up on unmount
     return () => ws.close();
   }, []);
