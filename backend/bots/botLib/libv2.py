@@ -170,7 +170,7 @@ class Game:
         match (piece.color, piece.type):
             case ("w", "P"):
                 # move up one square
-                if not self.board[position - 8]:
+                if position - 8 >= 0 and not self.board[position - 8]:
                     found_moves.append(position - 8)
                 # move two squares
                 if position - 16 >= 0 and not self.board[position - 16] and not self.board[position - 8] and 47 < position < 56:
@@ -183,7 +183,7 @@ class Game:
 
             case ("b", "P"):
                 # move up one square
-                if not self.board[position + 8]:
+                if position + 8 < 64 and not self.board[position + 8]:
                     found_moves.append(position + 8)
                 # move two squares
                 if position + 16 < 64 and not self.board[position + 16] and not self.board[position + 8] and 7 < position < 16:
