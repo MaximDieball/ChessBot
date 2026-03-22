@@ -1,0 +1,6 @@
+uses libv1 -> not up to date with more bugs
+
+calculates all moves possible
+chooses a random move
+
+does not know how to check mate

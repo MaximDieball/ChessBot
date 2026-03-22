@@ -6,12 +6,7 @@ let movesOutOfCheck: number[][] = [];
 let winner = "";
 
 export function movePiece(originalPosition: number, newPosition: number) {
-  const piece = board[originalPosition];
-  const pieceType = piece.substring(0, 3);
-  const moveCounter = Number(piece.slice(4)) + 1;
-  const newPieceString = pieceType + "-" + moveCounter;
   board = updateBoard(originalPosition, newPosition, board);
-  board[newPosition] = newPieceString;
   //console.log("moved Piece");
   switchTurn();
 }
@@ -32,7 +27,6 @@ function updateBoard(
   const moveCounter = Number(piece.slice(4)) + 1;
   piece = pieceType + "-" + moveCounter;
   newBoard[originalPosition] = "";
-  // castle logic
   // castle logic
   if (pieceType === "w-K" && newPosition === 62) {
     newBoard = updateBoard(63, 61, newBoard);
@@ -60,6 +54,11 @@ function updateBoard(
   if (pieceTaken === "w-E-0" && pieceType[2] === "P") {
     newBoard[newPosition - 8] = "";
   }
+
+  if (pieceType[2] === "P" && (newPosition < 8 || newPosition > 57)) {
+    piece = piece.substring(0, 2) + "Q-" + moveCounter;
+  }
+
   newBoard[newPosition] = piece;
   return newBoard;
 }
@@ -331,12 +330,12 @@ function checkCheck(color: string, board: string[]) {
       board[kingPos + 7] !== "" &&
       board[kingPos + 7].substring(0, 3) === "w-P") ||
     (color === "b" &&
-      kingPos % 8 !== 1 &&
+      kingPos % 8 !== 7 &&
       kingPos + 9 < 64 &&
       board[kingPos + 9] !== "" &&
       board[kingPos + 9].substring(0, 3) === "w-P") ||
     (color === "w" &&
-      kingPos % 8 !== 1 &&
+      kingPos % 8 !== 7 &&
       kingPos - 7 >= 0 &&
       board[kingPos - 7] !== "" &&
       board[kingPos - 7].substring(0, 3) === "b-P") ||

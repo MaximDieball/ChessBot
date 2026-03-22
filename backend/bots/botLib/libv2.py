@@ -29,9 +29,18 @@ class Game:
         self.white_queens = []
         self.white_kings = []
 
+        self.amount_of_black_pieces = 0
+        self.amount_of_white_pieces = 0
+
         self.board: list[Optional[Piece]] = [None] * 64
 
+        # (original_pos, piece, new_pos, piece_taken, true_move)
+        # true_move = an actual move not a recursive function call to perform a castle or enpassant
+        # revert move reverses moves until one true move is reverted and stops
+        self.history = []
+
     def import_board_string(self, string_board):
+
         self.black_enpassant_piece.clear()
         self.black_pawns.clear()
         self.black_knights.clear()
@@ -57,6 +66,10 @@ class Game:
                 self._place_piece(new_piece)
 
     def add_piece_to_list(self, piece):
+        if piece.color == "w":
+            self.amount_of_white_pieces += 1
+        else:
+            self.amount_of_black_pieces += 1
         match piece.type:
             case "E":
                 if piece.color == "w":
@@ -103,6 +116,11 @@ class Game:
         self.board[i] = None
         if removed_piece is None:
             return
+        if removed_piece.color == "w":
+            self.amount_of_white_pieces -= 1
+        else:
+            self.amount_of_black_pieces -= 1
+
         list_to_remove_from = []
         match removed_piece.type:
             case "E":
@@ -205,76 +223,86 @@ class Game:
             case ("w", "K"):
                 # check castle
                 if (piece.move_counter == 0 and self.check_for_piece(pos=63, color="w", type="R", move_counter=0)
-                        and not self.board[62] and not self.board[61] and not self._check_attacks("w", position)):
+                        and not self.board[62] and not self.board[61] and not self.check_attacks("w", position)):
                     found_moves.append(62)
                 if (piece.move_counter == 0 and self.check_for_piece(pos=56, color="w", type="R", move_counter=0)
                         and not self.board[57] and not self.board[58] and not self.board[59]
-                        and not self._check_attacks("w", position)):
+                        and not self.check_attacks("w", position)):
                     found_moves.append(58)
 
                 found_moves.extend(self._find_king_moves(position, turn))
             case ("b", "K"):
                 # check castle
                 if (piece.move_counter == 0 and self.check_for_piece(pos=7, color="b", type="R", move_counter=0)
-                        and not self.board[6] and not self.board[5] and not self._check_attacks("b", position)):
+                        and not self.board[6] and not self.board[5] and not self.check_attacks("b", position)):
                     found_moves.append(6)
                 if (piece.move_counter == 0 and self.check_for_piece(pos=0, color="b", type="R", move_counter=0)
                         and not self.board[1] and not self.board[2] and not self.board[3]
-                        and not self._check_attacks("b", position)):
+                        and not self.check_attacks("b", position)):
                     found_moves.append(2)
 
                 found_moves.extend(self._find_king_moves(position, turn))
 
-        for i in range(len(found_moves) - 1, -1, -1):
-            move = found_moves[i]
-            simulated_game = self.clone()
-            simulated_game.update_board(position, move)
-            if simulated_game._check_check(turn):
-                found_moves.pop(i)
-
         return found_moves
 
-    def update_board(self, original_position, new_position):
+    def update_board(self, original_position, new_position, recursion=False):
         piece = self.board[original_position]
         piece_taken = self.board[new_position]
         self._remove_piece(new_position)
         self._remove_piece(original_position)
-        piece.move_counter += 1
+
+        # promote to queen
+        promoted = False
+        if piece.type == "P" and (new_position < 8 or new_position > 57):
+            piece.type = "Q"
+            promoted = True
+
+        # save move to history
+        if not recursion:
+            self.history.append((original_position, piece, new_position, piece_taken, promoted, True))
+        else:
+            self.history.append((original_position, piece, new_position, piece_taken, promoted, False))
 
         # castle logic
         if piece.type == "K" and piece.move_counter == 0 and new_position == 62:
-            self.update_board(63, 61)  # move rook
+            self.update_board(63, 61, recursion=True)  # move rook
         if piece.type == "K" and piece.move_counter == 0 and new_position == 58:
-            self.update_board(56, 59)  # move rook
+            self.update_board(56, 59, recursion=True)  # move rook
         if piece.type == "K" and piece.move_counter == 0 and new_position == 2:
-            self.update_board(0, 3)  # move rook
+            self.update_board(0, 3, recursion=True)  # move rook
         if piece.type == "K" and piece.move_counter == 0 and new_position == 6:
-            self.update_board(7, 5)  # move rook
+            self.update_board(7, 5, recursion=True)  # move rook
 
         # en passant
-        if piece.type == "P" and new_position - original_position == 16:
-            self._place_piece(Piece(color="b", type="E", pos=new_position - 8, move_counter=0))
-        if piece.type == "P" and new_position - original_position == -16:
-            self._place_piece(Piece(color="w", type="E", pos=new_position - 8, move_counter=0))
-
         if piece_taken and piece_taken.type == "E" and piece_taken.color == "b" and piece.type == "P":
+            self.history.append((None, None, None, self.board[new_position + 8], False, False))
             self._remove_piece(new_position + 8)
         if piece_taken and piece_taken.type == "E" and piece_taken.color == "w" and piece.type == "P":
+            self.history.append((None, None, None, self.board[new_position - 8], False, False))
             self._remove_piece(new_position - 8)
 
-        # promote to queen
-        if piece.type == "P" and (new_position < 8 or new_position > 57):
-            piece.type = "Q"
+        # remove enpassant pieces
+        for enpassant_piece in self.white_enpassant_piece:
+            self.history.append((None, None, None, enpassant_piece, False, False))
+            self._remove_piece(enpassant_piece.pos)
+        for enpassant_piece in self.black_enpassant_piece:
+            self.history.append((None, None, None, enpassant_piece, False, False))
+            self._remove_piece(enpassant_piece.pos)
 
+        if piece.type == "P" and new_position - original_position == 16:
+            enpassant_piece = Piece(color="b", type="E", pos=new_position - 8, move_counter=0)
+            self._place_piece(enpassant_piece)
+            self.history.append((None, enpassant_piece, enpassant_piece.pos, None, False, False))
+        if piece.type == "P" and new_position - original_position == -16:
+            enpassant_piece = Piece(color="w", type="E", pos=new_position + 8, move_counter=0)
+            self._place_piece(enpassant_piece)
+            self.history.append((None, enpassant_piece, enpassant_piece.pos, None, False, False))
+
+        piece.move_counter += 1
         piece.pos = new_position
         self._place_piece(piece)
 
-    def _check_check(self, color):
-        king_pos = self.white_kings[0].pos if color == "w" else self.black_kings[0].pos
-        return self._check_attacks(color, king_pos)
-
-    def _check_attacks(self, color, pos):
-
+    def check_attacks(self, color, pos):
         # knight check
         knight_squares = self._find_knight_moves(pos, self.board, color)
         for square in knight_squares:
@@ -282,13 +310,47 @@ class Game:
             if piece and piece.type == "N" and piece.color != color:
                 return True
 
+        opponent_queens_rooks = []
+        opponent_queens_bishops = []
+        if color == "w":
+            opponent_queens_rooks.extend(self.black_rooks)
+            opponent_queens_rooks.extend(self.black_queens)
+            opponent_queens_bishops.extend(self.black_queens)
+            opponent_queens_bishops.extend(self.black_bishops)
+        else:
+            opponent_queens_rooks.extend(self.white_rooks)
+            opponent_queens_rooks.extend(self.white_queens)
+            opponent_queens_bishops.extend(self.white_queens)
+            opponent_queens_bishops.extend(self.white_bishops)
+
         # rook and queen check
-        straight_rays = [
-            self._straight_ray(pos, 1, self.board, color),  # Right
-            self._straight_ray(pos, -1, self.board, color),  # Left
-            self._straight_ray(pos, 8, self.board, color),  # Up
-            self._straight_ray(pos, -8, self.board, color)  # Down
-        ]
+        straight_rays = []
+        check_right = False
+        check_left = False
+        check_up = False
+        check_down = False
+
+        for piece in opponent_queens_rooks:
+            if piece.pos % 8 == pos % 8:
+                if piece.pos > pos:
+                    check_down = True
+                else:
+                    check_up = True
+
+            if abs(piece.pos - pos) < 8:
+                if piece.pos > pos:
+                    check_right = True
+                else:
+                    check_left = True
+
+        if check_down:
+            straight_rays.append(self._straight_ray(pos, 8, self.board, color))
+        if check_up:
+            straight_rays.append(self._straight_ray(pos, -8, self.board, color))
+        if check_right:
+            straight_rays.append(self._straight_ray(pos, 1, self.board, color))
+        if check_left:
+            straight_rays.append(self._straight_ray(pos, -1, self.board, color))
 
         for ray in straight_rays:
             if len(ray) > 0:
@@ -301,12 +363,36 @@ class Game:
                         return True
 
         # bishop and queen check
-        diagonal_rays = [
-            self._diagonal_ray(pos, -7, self.board, color),  # up right
-            self._diagonal_ray(pos, 7, self.board, color),  # down left
-            self._diagonal_ray(pos, -9, self.board, color),  # up left
-            self._diagonal_ray(pos, 9, self.board, color)  # down right
-        ]
+        diagonal_rays = []
+        check_up_right = False
+        check_down_left = False
+        check_up_left = False
+        check_down_right = False
+
+        for piece in opponent_queens_bishops:
+            piece_row, piece_col = divmod(piece.pos, 8)
+            pos_row, pos_col = divmod(pos, 8)
+
+            if piece_row - pos_row == piece_col - pos_col:
+                if piece.pos > pos:
+                    check_down_right = True
+                else:
+                    check_up_left = True
+
+            if -1 * (piece_row - pos_row) == piece_col - pos_col:
+                if piece.pos > pos:
+                    check_down_left = True
+                else:
+                    check_up_right = True
+
+        if check_up_right:
+            diagonal_rays.append(self._diagonal_ray(pos, -7, self.board, color))  # up right
+        if check_down_left:
+            diagonal_rays.append(self._diagonal_ray(pos, 7, self.board, color))  # down left
+        if check_up_left:
+            diagonal_rays.append(self._diagonal_ray(pos, -9, self.board, color))  # up left
+        if check_down_right:
+            diagonal_rays.append(self._diagonal_ray(pos, 9, self.board, color))     # down right
 
         for ray in diagonal_rays:
             if len(ray) > 0:
@@ -386,8 +472,7 @@ class Game:
 
         return found_squares
 
-    def _diagonal_ray(self, start, delta, input_board, turn):
-        board: list[Optional[Piece]] = list(input_board)
+    def _diagonal_ray(self, start, delta, board, turn):
         square = start
         found_squares = []
         # check edge cases when bishop is on the edge of the board
@@ -401,17 +486,14 @@ class Game:
         for steps in range(7):
             # next square
             square = square + delta
-            # remove enpassant pieces
-            if board[square] and board[square].type == "E":
-                board[square] = None
 
             # enemy piece
-            if board[square] and board[square].color != turn:
+            if board[square] and board[square].color != turn and board[square].type != "E":
                 found_squares.append(square)
                 return found_squares
 
             # own piece
-            if board[square]:
+            if board[square] and board[square].type != "E":
                 return found_squares
 
             # border
@@ -428,8 +510,7 @@ class Game:
 
         return found_squares
 
-    def _straight_ray(self, start, delta, input_board, turn):
-        board: list[Optional[Piece]] = list(input_board)
+    def _straight_ray(self, start, delta, board, turn):
         square = start
         found_squares = []
         # check if bishop is on the edge of the board
@@ -444,17 +525,14 @@ class Game:
         for steps in range(7):
             # next square
             square = square + delta
-            # remove enpassant pieces
-            if board[square] and board[square].type == "E":
-                board[square] = None
 
             # enemy piece
-            if board[square] and board[square].color != turn:
+            if board[square] and board[square].color != turn and board[square].type != "E":
                 found_squares.append(square)
                 return found_squares
 
             # own piece
-            if board[square]:
+            if board[square] and board[square].type != "E":
                 return found_squares
 
             # border
@@ -539,6 +617,30 @@ class Game:
         pieces.extend(self.black_queens)
         pieces.extend(self.black_kings)
         return pieces
+
+    def revert_move(self):
+        move = self.history.pop()
+        original_position = move[0]
+        piece = move[1]
+        new_position = move[2]
+        piece_taken = move[3]
+        promoted = move[4]
+        is_main_move = move[5]
+
+        if piece is not None:
+            self._remove_piece(new_position)
+            if original_position is not None:
+                piece.move_counter -= 1
+                piece.pos = original_position
+                if promoted:
+                    piece.type = "P"
+                self._place_piece(piece)
+
+        if piece_taken:
+            self._place_piece(piece_taken)
+
+        if not is_main_move:
+            self.revert_move()
 
     def clone(self):
         new_game = Game()

@@ -7,13 +7,24 @@ const bots = [
   {
     id: "v1",
     name: "🤖 Bob",
-    desc: "Looks 1 move ahead",
+    desc: "Looks ahead 1 move",
   },
   {
     id: "v2",
     name: "🤖 Bobs Older Brother",
-    desc: "Looks 5 move ahead",
+    desc: "Looks ahead 4 moves but overlooks less obvious plays",
   },
+    {
+    id: "v3",
+    name: "🤖 Max",
+    desc: "Knows some basic chess principles",
+  },
+      {
+    id: "v4",
+    name: "👑 Victor",
+    desc: "Looks up to 6 moves ahead principles",
+  },
+  
 ];
 
 interface BotSelectorProps {

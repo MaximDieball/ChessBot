@@ -1,6 +1,7 @@
 from bots.botLib.lib import *
 import yaml
 import random
+import copy
 
 with open("bots/botv2/config.yml", "r") as file:
     # safe_load is recommended for security (prevents code execution)
@@ -8,7 +9,7 @@ with open("bots/botv2/config.yml", "r") as file:
 
 
 piece_values = {
-    "E": config["piece_values"]["P"],      # en passant
+    "E": 0,      # en passant
     "P": config["piece_values"]["P"],
     "N": config["piece_values"]["N"],
     "B": config["piece_values"]["B"],
@@ -18,20 +19,21 @@ piece_values = {
 }
 
 
-def get_botv2_move(board, turn, depth=config["bot_settings"]["depth"]):
+def get_botv2_move(game, turn, depth=config["bot_settings"]["depth"]):
     possible_moves = []
     best_move = []
     best_eval = -100001
     opponent_color = "b" if turn == "w" else "w"
 
     # find all possible moves
-    for i, piece in enumerate(board):
-        if piece != "" and piece[0] == turn:
-            found_moves = find_legal_moves(i, piece, board, turn)
+    for i, piece in enumerate(game.board):
+        if piece and piece.color == turn:
+            found_moves = game.find_legal_moves(i, piece, turn)
             for move in found_moves:
                 # eval position and sort possible moves by eval
-                simulated_board = update_board(i, move, board)
-                evaluation = evaluate_position(simulated_board)
+                simulated_game = game.clone()
+                simulated_game.update_board(i, move)
+                evaluation = evaluate_position(simulated_game.board)
                 if turn == "b":
                     evaluation = -1 * evaluation
                 inserted_new_move = False
@@ -42,12 +44,13 @@ def get_botv2_move(board, turn, depth=config["bot_settings"]["depth"]):
                         break
                 if not inserted_new_move or len(possible_moves) == 0:
                     possible_moves.append([i, move, evaluation])
+
     # no moves = bad
     if len(possible_moves) <= 0:
         if turn == "w":
-            return [0, 0], -10000
+            return [0, 0], -100001
         else:
-            return [0, 0], 10000
+            return [0, 0], 100001
 
     if depth <= 0:
         best_move = possible_moves[0]
@@ -57,8 +60,9 @@ def get_botv2_move(board, turn, depth=config["bot_settings"]["depth"]):
     else:
         branches = 0
         for i, move in enumerate(possible_moves):
-            simulated_board = update_board(move[0], move[1], board)
-            found_move, found_eval = get_botv2_move(simulated_board, opponent_color, depth-1)
+            simulated_game = game.clone()
+            simulated_game.update_board(move[0], move[1])
+            found_move, found_eval = get_botv2_move(simulated_game, opponent_color, depth-1)
             found_eval = found_eval*-1
             if found_eval > best_eval:
                 best_move = move
@@ -71,19 +75,21 @@ def get_botv2_move(board, turn, depth=config["bot_settings"]["depth"]):
 
 
 def evaluate_position(board):
-    black_score = 1
-    white_score = 1
+    black_score = 0
+    white_score = 0
 
     for i, piece in enumerate(board):
         score = 0
-        if piece != "":
-            piece_color = piece[0]
-            opponent_color = "b" if piece_color == "w" else "w"
-            score += piece_values[piece[2]]
+        if piece:
+            score += piece_values[piece.type]
 
-            if piece_color == "b":
+            if piece.color == "b":
                 black_score += score
             else:
                 white_score += score
 
     return white_score - black_score
+
+
+
+

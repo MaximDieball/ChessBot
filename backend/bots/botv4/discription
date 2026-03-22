@@ -1,0 +1,7 @@
+uses libv2 -> still allowing a few rare illegal moves
+
+calculates all moves possible
+selects move with best eval
+eval adds up the piece values and adds opening, mid game or end game value tables
+uses alpha beta pruning and reverts moves on one board obj instead of cloning the board obj for better performance
+can check most of the mate

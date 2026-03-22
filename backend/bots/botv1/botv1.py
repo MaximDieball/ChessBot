@@ -11,14 +11,15 @@ piece_values = {
     "K": 20000
 }
 
-def get_botv1_move(board, turn):
+def get_botv1_move(game, turn):
     possible_moves = []
     best_move = []
     best_eval = -100001
+
     # find all possible moves
-    for i, piece in enumerate(board):
-        if piece != "" and piece[0] == turn:
-            found_moves = find_legal_moves(i, piece, board, turn)
+    for i, piece in enumerate(game.board):
+        if piece and piece.color == turn:
+            found_moves = game.find_legal_moves(i, piece, turn)
             for move in found_moves:
                 possible_moves.append([i, move])
     if len(possible_moves) <= 0:
@@ -26,8 +27,9 @@ def get_botv1_move(board, turn):
 
     # evaluate every move
     for i, move in enumerate(possible_moves):
-        simulated_board = update_board(move[0], move[1], board)
-        evaluation = evaluate_position(simulated_board)
+        simulated_game = game.clone()
+        simulated_game.update_board(move[0], move[1])
+        evaluation = evaluate_position(simulated_game.board)
         if turn == "b":
             evaluation = -1*evaluation
         if evaluation > best_eval:
@@ -43,26 +45,11 @@ def evaluate_position(board):
 
     for i, piece in enumerate(board):
         score = 0
-        if piece != "":
-            piece_color = piece[0]
-            opponent_color = "b" if piece_color == "w" else "w"
-            score += piece_values[piece[2]]
-            if piece[2] == "K":
-                if check_mate(piece_color, board):  # mate :(
-                    if piece_color == "w":
-                        return -100000
-                    else:
-                        return 100000
-            # check control
-            found_moves = find_legal_moves(i, piece, board, piece_color)
-            for move in found_moves:
-                if len(board[move]) > 2:
-                    # score += piece_values[board[move][2]] * 0.2   # attacking enemy
-                    score += 10  # controller square
-                else:
-                    score += 10   # controller square
+        if piece:
 
-            if piece_color == "b":
+            score += piece_values[piece.type]
+
+            if piece.color == "b":
                 black_score += score
             else:
                 white_score += score

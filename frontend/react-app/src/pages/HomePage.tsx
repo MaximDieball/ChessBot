@@ -1,10 +1,10 @@
-import { useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom";
 
 function HomePage() {
-    const navigate = useNavigate()
-    const gotToPlayChessBotPage = () => {
-        navigate("/play-chess-bot");
-};
+  const navigate = useNavigate();
+  const gotToPlayChessBotPage = () => {
+    navigate("/play-chess-bot");
+  };
 
   return (
     <>

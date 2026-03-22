@@ -1,0 +1,7 @@
+uses libv1 -> not up to date with more bugs
+
+calculates all moves possible
+selects move with best eval
+eval adds up all piece values on board
+
+does not know how to check mate
