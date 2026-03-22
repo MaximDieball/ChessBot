@@ -261,6 +261,10 @@ useEffect(() => {
     const ws = new WebSocket(wsUrl);
     setSocket(ws);
 
+    // HIER IST DER FEHLENDE TEIL:
+    // Wir verknüpfen den WebSocket mit deiner Funktion
+    ws.onmessage = handleMessage;
+
     // Clean up on unmount
     return () => ws.close();
   }, []);
