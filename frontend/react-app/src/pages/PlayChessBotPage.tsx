@@ -93,6 +93,9 @@ function PlayChessBotPage() {
         movePiece(selectedSquare, position);
         setSelectedSquare(-1);
         resetLegalMoves();
+
+        reRenderPage();
+
         if (getWinner() !== "") {
           setShowPopUp(true);
           return;
@@ -233,6 +236,13 @@ function PlayChessBotPage() {
       addMarking(2, response["originalPosition"]);
       addMarking(2, response["newPosition"]);
       movePiece(response["originalPosition"], response["newPosition"]);
+
+  
+
+      if (getWinner() !== "") {
+        setShowPopUp(true);
+      }
+      reRenderPage();
     }
   }
 
@@ -247,7 +257,6 @@ useEffect(() => {
     let wsUrl: string;
 
     // Prüfen, ob wir lokal auf dem Vite-Dev-Server sind (Port 5173, 3000, etc.)
-    // und NICHT auf dem FastAPI Port 8000
     if (window.location.hostname === 'localhost' && window.location.port !== '8000') {
       // Hardcoded für lokale Entwicklung
       wsUrl = "ws://localhost:8000/ws";
@@ -261,8 +270,6 @@ useEffect(() => {
     const ws = new WebSocket(wsUrl);
     setSocket(ws);
 
-    // HIER IST DER FEHLENDE TEIL:
-    // Wir verknüpfen den WebSocket mit deiner Funktion
     ws.onmessage = handleMessage;
 
     // Clean up on unmount

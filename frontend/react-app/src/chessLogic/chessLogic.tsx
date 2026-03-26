@@ -252,22 +252,31 @@ function isOpponentQueenOrBishop(
   return false;
 }
 
-function checkMate(color: string, board: string[]) {
+export function setTurn(newTurn: string) {
+  turn = newTurn;
+}
+
+export function checkGameState(color: string, board: string[]) {
   inCheck = checkCheck(color, board);
   let possibleMoves: number[][] = [];
-  if (inCheck) {
-    // find all legal moves
-    for (let pos = 0; pos < 64; pos++) {
-      if (board[pos] !== "" && board[pos][0] === color) {
-        let legalMovesFound = findLegalMoves(pos, board[pos], board);
-        for (let move = 0; move < legalMovesFound.length; move++) {
-          possibleMoves.push([pos, legalMovesFound[move]]);
-        }
+  
+  for (let pos = 0; pos < 64; pos++) {
+    if (board[pos] !== "" && board[pos][0] === color) {
+      let legalMovesFound = findLegalMoves(pos, board[pos], board);
+      for (let move = 0; move < legalMovesFound.length; move++) {
+        possibleMoves.push([pos, legalMovesFound[move]]);
       }
     }
-    return possibleMoves.length === 0;
   }
-  return false;
+
+  if (possibleMoves.length === 0) {
+    if (inCheck) {
+      return "checkmate";
+    } else {
+      return "stalemate";
+    }
+  }
+  return "playing";
 }
 
 function checkCheck(color: string, board: string[]) {
@@ -617,28 +626,20 @@ export function resetLegalMoves() {
 }
 
 function switchTurn() {
-  if (turn === "w") {
-    turn = "b";
-    removeEnpassantPieces("b");
-    let inMate = checkMate("b", board);
-    console.log("black in mate: " + inMate);
-    console.log("black in check: " + inCheck);
-    if (inMate === true) {
-      winner = "w";
-    }
-    // pop up
-  } else {
-    turn = "w";
-    removeEnpassantPieces("w");
-    let inMate = checkMate("w", board);
-    console.log("white in mate: " + inMate);
-    console.log("white in check: " + inCheck);
-    if (inMate === true) {
-      winner = "b";
-    }
-    // pop up
+  const nextTurn = turn === "w" ? "b" : "w";
+  turn = nextTurn;
+  removeEnpassantPieces(nextTurn);
+  
+  const gameState = checkGameState(nextTurn, board);
+  console.log(`${nextTurn === "w" ? "white" : "black"} in check: ${inCheck}`);
+
+  if (gameState === "checkmate") {
+    winner = nextTurn === "w" ? "b" : "w"; 
+  } else if (gameState === "stalemate") {
+    winner = "draw";
   }
 }
+
 
 export function resetBoard() {
   //setSelectedSquare(-1);

@@ -1,4 +1,4 @@
-from bots.botLib.libv2 import *
+from bots.botLib.libv3wrapper import *
 import yaml
 from bots.botv4.value_tables import *
 import math
