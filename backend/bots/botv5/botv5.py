@@ -2,7 +2,7 @@ from bots.botLib.libv3wrapper import *
 import yaml
 from bots.botv5.value_tables import *
 import math
-from bots.botv5.build import bot_search
+from bots.botv5.builds import bot_search
 
 with open("bots/botv5/config.yml", "r") as file:
     # safe_load is recommended for security (prevents code execution)
