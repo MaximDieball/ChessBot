@@ -8,8 +8,10 @@ from bots.botv2.botv2 import get_botv2_move
 from bots.botv3.botv3 import start_botv3_move_search
 from bots.botv4.botv4 import start_botv4_move_search
 from bots.botv5.botv5 import start_botv5_move_search
+from bots.botv6.botv6 import start_botv6_move_search
 from bots.botLib.lib import Game as Gamev1
 from bots.botLib.libv2 import Game as Gamev2
+from bots.botLib.libv3wrapper import Game as Gamev3
 import time
 
 app = FastAPI()
@@ -44,9 +46,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     game.import_board_string(data['board'])
                     move, evaluation = start_botv4_move_search(game, data['turn'])
                 case "v5":
-                    game = Gamev2()
+                    game = Gamev3()
                     game.import_board_string(data['board'])
                     move, evaluation = start_botv5_move_search(game, data['turn'])
+                case "v6":
+                    game = Gamev3()
+                    game.import_board_string(data['board'])
+                    move, evaluation = start_botv6_move_search(game, data['turn'])
                 case _:
                     game = Gamev2()
                     game.import_board_string(data['board'])
