@@ -24,6 +24,11 @@ const bots = [
     name: "👑 Victor",
     desc: "Looks up to 6 moves ahead principles",
   },
+        {
+    id: "v5",
+    name: "⚡️Flash⚡️",
+    desc: "Victor converted to c++",
+  },
   
 ];
 

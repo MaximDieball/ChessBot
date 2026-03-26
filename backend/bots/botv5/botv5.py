@@ -1,9 +1,9 @@
 from bots.botLib.libv2 import *
 import yaml
-from bots.botv3.value_tables import *
+from bots.botv5.value_tables import *
 import math
 
-with open("bots/botv3/config.yml", "r") as file:
+with open("bots/botv5/config.yml", "r") as file:
     # safe_load is recommended for security (prevents code execution)
     config = yaml.safe_load(file)
 
@@ -18,17 +18,17 @@ piece_values = {
     "K": config["piece_values"]["K"]
 }
 
-def start_botv3_move_search(game, turn):
+def start_botv5_move_search(game, turn):
     min_piece_count = min(game.amount_of_white_pieces, game.amount_of_black_pieces)
-    if min_piece_count < 6:
-        return _get_botv3_move(game, turn, config["bot_settings"]["end_game_depth"])
-    elif min_piece_count < 12:
-        return _get_botv3_move(game, turn, config["bot_settings"]["mid_game_depth"])
+    if min_piece_count < 8:
+        return _get_botv5_move(game, turn, config["bot_settings"]["end_game_depth"])
+    elif min_piece_count < 13:
+        return _get_botv5_move(game, turn, config["bot_settings"]["mid_game_depth"])
     else:
-        return _get_botv3_move(game, turn, config["bot_settings"]["opening_depth"])
+        return _get_botv5_move(game, turn, config["bot_settings"]["opening_depth"])
 
 
-def _get_botv3_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
+def _get_botv5_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
     possible_moves = []
     opponent_color = "b" if turn == "w" else "w"
 
@@ -42,9 +42,9 @@ def _get_botv3_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
         found_moves = game.find_legal_moves(piece.pos, piece, turn)
         for move in found_moves:
             # eval position
-            simulated_game = game.clone()
-            simulated_game.update_board(piece.pos, move)
-            evaluation = evaluate_position(simulated_game, turn)
+            game.update_board(piece.pos, move)
+            evaluation = evaluate_position(game, turn)
+            game.revert_move()
             possible_moves.append([piece.pos, move, evaluation])
 
     # Sort moves
@@ -67,6 +67,7 @@ def _get_botv3_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
     if len(possible_moves) == 0:
         return [0, 0], -10000
 
+
     # Default to the best immediate move in case all deeper searches get pruned
     best_move = possible_moves[0]
     best_eval = -math.inf
@@ -75,11 +76,12 @@ def _get_botv3_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
         return possible_moves[0], possible_moves[0][2]
 
     for move in possible_moves:
-        simulated_game = game.clone()
-        simulated_game.update_board(move[0], move[1])
+        game.update_board(move[0], move[1])
 
-        found_move, opponent_eval = _get_botv3_move(simulated_game, opponent_color, depth - 1, -beta, -alpha)
+        found_move, opponent_eval = _get_botv5_move(game, opponent_color, depth - 1, -beta, -alpha)
         found_eval = -opponent_eval
+
+        game.revert_move()
 
         # Update best move if we found a better evaluation
         if found_eval > best_eval:
@@ -94,6 +96,13 @@ def _get_botv3_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
         if alpha >= beta:
             break
 
+    # king will be taken in the next moves
+    if best_eval == -math.inf:
+        king = game.white_kings[0] if turn == "w" else game.black_kings[0]
+        # if the king will be taken in the next move but is currently not under attack
+        if not game.check_attacks(turn, king.pos):
+            # its stalemate
+            return best_move, 0
     return best_move, best_eval
 
 
