@@ -1,0 +1,13 @@
+bot_settings:
+  opening_depth: 6
+  mid_game_depth: 6
+  end_game_depth: 6
+
+
+piece_values:
+  P: 100
+  N: 320
+  B: 350
+  R: 500
+  Q: 900
+  K: 9000000

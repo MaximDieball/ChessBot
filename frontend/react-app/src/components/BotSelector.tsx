@@ -29,7 +29,13 @@ const bots = [
     name: "⚡️Flash⚡️",
     desc: "Victor converted to c++",
   },
+        {
+    id: "v6",
+    name: "♟️ Mini Magnus",
+    desc: "Looks 6 moves ahead",
+  },
   
+
 ];
 
 interface BotSelectorProps {

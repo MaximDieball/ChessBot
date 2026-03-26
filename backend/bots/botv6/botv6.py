@@ -1,9 +1,10 @@
-from bots.botLib.libv2 import *
+from bots.botLib.libv3wrapper import *
 import yaml
-from bots.botv4.value_tables import *
+from bots.botv6.value_tables import *
 import math
+from bots.botv6.build import bot_search
 
-with open("bots/botv4/config.yml", "r") as file:
+with open("bots/botv6/config.yml", "r") as file:
     # safe_load is recommended for security (prevents code execution)
     config = yaml.safe_load(file)
 
@@ -18,17 +19,28 @@ piece_values = {
     "K": config["piece_values"]["K"]
 }
 
-def start_botv4_move_search(game, turn):
+def start_botv6_move_search(game, turn):
     min_piece_count = min(game.amount_of_white_pieces, game.amount_of_black_pieces)
     if min_piece_count < 8:
-        return _get_botv4_move(game, turn, config["bot_settings"]["end_game_depth"])
+        depth = config["bot_settings"]["end_game_depth"]
     elif min_piece_count < 13:
-        return _get_botv4_move(game, turn, config["bot_settings"]["mid_game_depth"])
+        depth = config["bot_settings"]["mid_game_depth"]
     else:
-        return _get_botv4_move(game, turn, config["bot_settings"]["opening_depth"])
+        depth = config["bot_settings"]["opening_depth"]
+
+    # hand of calculation to cpp
+    return bot_search.start_cpp_search(
+        game, turn, depth,
+        piece_values,
+        end_game_value_tables,
+        mid_game_value_tables,
+        opening_value_tables
+    )
 
 
-def _get_botv4_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
+# converted to cpp
+"""
+def _get_botv6_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
     possible_moves = []
     opponent_color = "b" if turn == "w" else "w"
 
@@ -78,8 +90,8 @@ def _get_botv4_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
     for move in possible_moves:
         game.update_board(move[0], move[1])
 
-        found_move, opponent_eval = _get_botv4_move(game, opponent_color, depth - 1, -beta, -alpha)
-        found_eval = -opponent_eval
+        found_move, opponent_eval = _get_botv6_move(game, opponent_color, depth - 1, -beta, -alpha)
+        found_eval = -opponent_eva
 
         game.revert_move()
 
@@ -132,4 +144,4 @@ def evaluate_position(game, turn):
         return black_score - white_score
 
 
-
+"""

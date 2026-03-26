@@ -55,7 +55,7 @@ function updateBoard(
     newBoard[newPosition - 8] = "";
   }
 
-  if (pieceType[2] === "P" && (newPosition < 8 || newPosition > 57)) {
+  if (pieceType[2] === "P" && (newPosition < 8 || newPosition > 55)) {
     piece = piece.substring(0, 2) + "Q-" + moveCounter;
   }
 
