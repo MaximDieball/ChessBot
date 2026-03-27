@@ -1,4 +1,4 @@
-from bots.botLib.builds.libv3 import libv3
+from bots.botLib.builds import libv3
 
 class Game(libv3.Game):
     pass
