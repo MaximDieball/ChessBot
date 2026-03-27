@@ -71,14 +71,15 @@ def _get_botv4_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
     # Default to the best immediate move in case all deeper searches get pruned
     best_move = possible_moves[0]
     best_eval = -math.inf
+    best_move_depth = depth
 
     if depth <= 1:
-        return possible_moves[0], possible_moves[0][2]
+        return possible_moves[0], possible_moves[0][2], depth
 
     for move in possible_moves:
         game.update_board(move[0], move[1])
 
-        found_move, opponent_eval = _get_botv4_move(game, opponent_color, depth - 1, -beta, -alpha)
+        found_move, opponent_eval, found_depth = _get_botv4_move(game, opponent_color, depth - 1, -beta, -alpha)
         found_eval = -opponent_eval
 
         game.revert_move()
@@ -87,6 +88,14 @@ def _get_botv4_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
         if found_eval > best_eval:
             best_eval = found_eval
             best_move = move
+            best_move_depth = found_depth
+        # do not sacrifice king if check mate is forced in a few moves
+        elif found_eval == -math.inf and best_eval == -math.inf and found_depth > best_move_depth:
+            best_eval = found_eval
+            best_move = move
+            best_move_depth = found_depth
+
+
 
         # update alpha
         alpha = max(alpha, found_eval)
@@ -102,8 +111,8 @@ def _get_botv4_move(game, turn, depth, alpha=-math.inf, beta=math.inf):
         # if the king will be taken in the next move but is currently not under attack
         if not game.check_attacks(turn, king.pos):
             # its stalemate
-            return best_move, 0
-    return best_move, best_eval
+            return best_move, 0, depth
+    return best_move, best_eval, depth
 
 
 def evaluate_position(game, turn):

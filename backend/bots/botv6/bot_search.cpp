@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <tuple>
 
 namespace py = pybind11;
 
@@ -74,7 +75,7 @@ double evaluate_position_cpp(
 // ---------------------------------------------------------
 // 2. The Recursive Minimax Search
 // ---------------------------------------------------------
-std::pair<std::vector<int>, double> _get_botv5_move_cpp(
+std::tuple<std::vector<int>, double, int> _get_botv5_move_cpp(
     std::shared_ptr<Game> game,
     std::string turn,
     int depth,
@@ -90,12 +91,10 @@ std::pair<std::vector<int>, double> _get_botv5_move_cpp(
 
     std::vector<std::shared_ptr<Piece>> moveable_pieces = (turn == "w") ? game->get_white_pieces() : game->get_black_pieces();
 
-    // Find all possible moves
     for (const auto& piece : moveable_pieces) {
         if (!piece) continue;
         std::vector<int> found_moves = game->find_legal_moves(piece->pos, piece, turn);
         for (int move : found_moves) {
-            // Eval position
             game->update_board(piece->pos, move);
             double eval = evaluate_position_cpp(game, turn, piece_values, end_game_table, mid_game_table, opening_table);
             game->revert_move();
@@ -103,39 +102,37 @@ std::pair<std::vector<int>, double> _get_botv5_move_cpp(
         }
     }
 
-    // Sort moves descending (highest evaluation first)
     std::sort(possible_moves.begin(), possible_moves.end(), [](const ScoredMove& a, const ScoredMove& b) {
         return a.evaluation > b.evaluation;
     });
 
-    // If the king could be taken, the path is a checkmate
+    // Added depth to the return statements
     if (game->white_kings.empty()) {
-        if (turn == "w") return {{0, 0}, -INFINITY};
-        else return {{0, 0}, INFINITY};
+        if (turn == "w") return {{0, 0}, -INFINITY, depth};
+        else return {{0, 0}, INFINITY, depth};
     }
     if (game->black_kings.empty()) {
-        if (turn == "w") return {{0, 0}, INFINITY};
-        else return {{0, 0}, -INFINITY};
+        if (turn == "w") return {{0, 0}, INFINITY, depth};
+        else return {{0, 0}, -INFINITY, depth};
     }
 
-    // Very weird situation. Don't know what should happen here but having no moves seems bad
     if (possible_moves.empty()) {
-        return {{0, 0}, -10000.0};
+        return {{0, 0}, -10000.0, depth};
     }
 
-    // Default to the best immediate move in case all deeper searches get pruned
     ScoredMove best_move = possible_moves[0];
     double best_eval = -INFINITY;
+    int best_move_depth = depth; // NEW
 
     if (depth <= 1) {
-        return {{possible_moves[0].original_pos, possible_moves[0].new_pos}, possible_moves[0].evaluation};
+        return {{possible_moves[0].original_pos, possible_moves[0].new_pos}, possible_moves[0].evaluation, depth};
     }
 
     for (const auto& move : possible_moves) {
         game->update_board(move.original_pos, move.new_pos);
 
-        // Recursive call
-        auto [found_move, opponent_eval] = _get_botv5_move_cpp(
+        // NEW: Unpack 3 values using C++17 structured bindings
+        auto [found_move, opponent_eval, found_depth] = _get_botv5_move_cpp(
             game, opponent_color, depth - 1, -beta, -alpha,
             piece_values, end_game_table, mid_game_table, opening_table
         );
@@ -143,34 +140,36 @@ std::pair<std::vector<int>, double> _get_botv5_move_cpp(
         double found_eval = -opponent_eval;
         game->revert_move();
 
-        // Update best move if we found a better evaluation
+        // NEW: Your checkmate delay logic
         if (found_eval > best_eval) {
             best_eval = found_eval;
             best_move = move;
+            best_move_depth = found_depth;
+        }
+        else if (found_eval == -INFINITY && best_eval == -INFINITY && found_depth > best_move_depth) {
+            best_eval = found_eval;
+            best_move = move;
+            best_move_depth = found_depth;
         }
 
-        // Update alpha
         alpha = std::max(alpha, found_eval);
 
-        // Alpha-Beta Pruning
         if (alpha >= beta) {
             break;
         }
     }
 
-    // King will be taken in the next moves
     if (best_eval == -INFINITY) {
         std::shared_ptr<Piece> king = nullptr;
         if (turn == "w" && !game->white_kings.empty()) king = game->white_kings[0];
         else if (turn == "b" && !game->black_kings.empty()) king = game->black_kings[0];
 
-        // If the king will be taken but is currently not under attack (Stalemate)
         if (king && !game->check_attacks(turn, king->pos)) {
-            return {{best_move.original_pos, best_move.new_pos}, 0.0};
+            return {{best_move.original_pos, best_move.new_pos}, 0.0, depth};
         }
     }
 
-    return {{best_move.original_pos, best_move.new_pos}, best_eval};
+    return {{best_move.original_pos, best_move.new_pos}, best_eval, best_move_depth};
 }
 
 // ---------------------------------------------------------
@@ -179,7 +178,6 @@ std::pair<std::vector<int>, double> _get_botv5_move_cpp(
 PYBIND11_MODULE(bot_search, m) {
     m.doc() = "C++ Minimax Search Loop";
 
-    // Expose a single start function that kicks off the C++ loop with initial alpha/beta
     m.def("start_cpp_search", [](
         std::shared_ptr<Game> game,
         std::string turn,
@@ -189,10 +187,13 @@ PYBIND11_MODULE(bot_search, m) {
         std::unordered_map<std::string, std::vector<int>> mid_game_table,
         std::unordered_map<std::string, std::vector<int>> opening_table
     ) {
-        // Starts the search with -INFINITY and INFINITY for alpha and beta
-        return _get_botv5_move_cpp(
+        // Run the 3-value search
+        auto [move, eval, result_depth] = _get_botv5_move_cpp(
             game, turn, depth, -INFINITY, INFINITY,
             piece_values, end_game_table, mid_game_table, opening_table
         );
+
+        // Return ONLY 2 values back to Python so main.py doesn't crash!
+        return std::make_pair(move, eval);
     });
 }
