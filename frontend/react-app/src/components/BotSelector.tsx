@@ -7,12 +7,12 @@ const bots = [
   {
     id: "v1",
     name: "🤖 Bob",
-    desc: "Looks ahead 1 move",
+    desc: "Looks 1 move ahead",
   },
   {
     id: "v2",
     name: "🤖 Bobs Older Brother",
-    desc: "Looks ahead 4 moves but overlooks less obvious plays",
+    desc: "Looks 4 moves ahead but only sees obvious moves",
   },
     {
     id: "v3",
@@ -22,7 +22,7 @@ const bots = [
       {
     id: "v4",
     name: "👑 Victor",
-    desc: "Looks up to 6 moves ahead principles",
+    desc: "Looks up to 6 moves ahead + some principles",
   },
         {
     id: "v5",
